@@ -26,31 +26,26 @@ Move StudentAI::GetMove(Move move)
     Move res = checker_moves[j];
     board.makeMove(res,player);
     return res;
-
-
 }
 
 
 class Node{
-    // bool term
-    // unsigned int size
+    bool term;
+    unsigned int size;
     unsigned int number_of_simulations;
     double score;
     const Gstate * state; // current 
-    const Gmov *move; // move to come from parent to current 
+    const Move *move; // move to come from parent to current 
     vector<Node *> *children;
     Node * parent;
-    queue < Gmov*> *totry; // why
-    // void backpropagate(double, )
-
-    public:
-
-
-    Node(const Gstate *state,Node *parent, const Gmov *move);
+    queue < Move*> *totry;
+    void backpropagate(double w, int n);
+public:
+    Node(const Gstate *state,Node *parent, const Move *move);
 
     ~Node();
     bool is_expanded() const;
-    const Gmov *get_move() const;
+    const Move *get_move() const;
     unsigned int get_size() const;
     bool is_term() const;
 
@@ -58,7 +53,7 @@ class Node{
     void rollout();
 
     Node* select_best_child(double c) const;
-    Node* advancetree(const Gmov *mov);
+    Node* advancetree(const Move *mov);
     const Gstate *get_current_state() const;
 
     void get_stats() const;
@@ -76,18 +71,15 @@ class GTree{
     public:
     GTree(Gstate *start_state, int max_iter);
     ~GTree();
-    Node* select(double c=? ); // select child to expand
-    Node* select_best_child(); // select best 
+    Node *select(double c=? ); // select child to expand
+    Node *select_best_child(); // select best 
     
     void grow_tree(int max_iter, double_max_time_insecs);
 
-    void advance_tree(const Gmove *move);
+    void advance_tree(const Move *move);
     unsigned int get_size() const;
     const Gstate *get_current_state() const;
 
     void get_states() const;
 
 };
-
-
-class 
