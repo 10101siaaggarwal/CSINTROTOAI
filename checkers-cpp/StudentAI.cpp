@@ -25,7 +25,8 @@ Move StudentAI::GetMove(Move move)
     int j = rand() % (checker_moves.size());
     Move res = checker_moves[j];
     board.makeMove(res,player);
-    return res;
+    return res; 
+    //return select_best_child(Node.score)
 }
 
 
