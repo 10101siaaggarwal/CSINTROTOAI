@@ -29,7 +29,7 @@ Move StudentAI::GetMove(Move move)
     // board.makeMove(res,player);
     // return res;
 
-    Gstate gstate();
+    Gstate gstate(board, player);
     GTree gameTree(gstate);
     Move mov = * (gameTree.generate(move));
 
@@ -40,7 +40,13 @@ Move StudentAI::GetMove(Move move)
 
 
 
-Gstate::Gstate(Board board,):board(board),
+Gstate::Gstate(Board board, int t):board(board), t(t)
+
+bool Gstate::is_term(){
+    return board.isWin(t) in {0,1,2};
+}
+
+
 /*
 class Node{
     bool term;
@@ -89,7 +95,7 @@ public:
 Node::Node(const Gstate *state, Node *parent, const Move*move): state(state), parent(parent), move(move), score(0.0){
 children = new vector<Node*>(10);
 totry = state->actions_to_try();
-term = state->term;
+term = state->is_term();
 }
 
 
