@@ -21,23 +21,26 @@ Move StudentAI::GetMove(Move move)
     } else{
         board.makeMove(move,player == 1?2:1);
     }
-    vector<vector<Move> > moves = board.getAllPossibleMoves(player);
-    int i = rand() % (moves.size());
-    vector<Move> checker_moves = moves[i];
-    int j = rand() % (checker_moves.size());
-    Move res = checker_moves[j];
-    board.makeMove(res,player);
-    return res;
+    // vector<vector<Move> > moves = board.getAllPossibleMoves(player);
+    // int i = rand() % (moves.size());
+    // vector<Move> checker_moves = moves[i];
+   //  int j = rand() % (checker_moves.size());
+    // Move res = checker_moves[j];
+    // board.makeMove(res,player);
+    // return res;
 
     Gstate gstate();
     GTree gameTree(gstate);
-    Move mov = gameTree generate(move);
+    Move mov = * (gameTree.generate(move));
 
     board.makeMove(mov, player);
-
+    return mov;
     //return select_best_child(Node.score)
 }
 
+
+
+Gstate::Gstate(Board board,):board(board),
 /*
 class Node{
     bool term;
@@ -292,13 +295,14 @@ const Move *Gtree::generate(const Move emove){
 
     if (this->get_current_state()->is_term()) return nullptr;
 
-    this->grow_tree(max_iter, max_secon);
+    this->grow_tree(max_iter, max_seconds);
 
     Node* bchild = this->select_best_child();
 
     if(!bchild) return nullptr;
 
     const Move *betsmov = bchild->get_move();
-    this->advance_tree(bestmov)
+    this->advance_tree(bestmov);
     return bestmov;
 }
+
