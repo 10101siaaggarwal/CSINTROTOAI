@@ -82,14 +82,67 @@ public:
 };
 */
 
+Gstate gstate(board, player);
+    GTree gameTree(gstate);
+    Move mov = * (gameTree.generate(move));
+
+Gstate::Gstate(Board board, int t):board(board), t(t)
+
+virtual queue<MCTS_move *> *actions_to_try(){
+
+}
+
+virtual double rollout(){
+    const Gstate* curr = this;
+    const Gstate* prev_alloc = nullptr;
+    std::mt19937 rng(static_cast<unsigned>(std::chrono::steady_clock::now().time_since_epoch().count()));
+
+    while(true){
+        //if(curr->is_term()){  
+        //}
+
+        queue<Move*>* q = curr->actions_to_try();
+
+        if(!q || q->empty()){
+            if(q){delete q;}
+            double res = curr->player1_turn() ? 0.0 : 1.0;
+            if(prev_alloc){delete prev_alloc;}
+            return res;
+        }
+
+        std::vector<Move*> random_picks;
+        random_picks.reserve(q->size());
+
+        while(!q->empty()){
+            random_picks.push_back(q->front());
+            q->pop();
+        }
+
+        delete q;
+
+        std::uniform_int_distribution<size_t> dist(0, pool.size()-1);
+        size_t index = dist(rng);
+        Move* chosen = random_picks[index];
 
 
+        const Gstate* next = curr->next_state(chosen);
 
+        for(size_t i = 0; i < random_picks.size(); ++i){
+            if(i != index){delete random_picks[i];}
+        }
 
+        delete chosen;
 
+        if(prev_alloc){delete prev_alloc;}
 
+        prev_alloc=next;
+        curr=next;
+    }
+}
 
-
+bool Gstate::is_term(){
+    return board.isWin(t) in {0,1,2};
+}
 
 
 Node::Node(const Gstate *state, Node *parent, const Move*move): state(state), parent(parent), move(move), score(0.0){

@@ -66,8 +66,21 @@ class GTree{
     const Gstate *get_current_state() const;
 
     void get_states() const;
-
+    const Move * generate(const Move move);
 };
 
+class Gstate {
+public:
+    // Implement these:
+    virtual ~Gstate() = default;
+    virtual queue<MCTS_move *> *actions_to_try() const = 0;
+    virtual MCTS_state *next_state(const MCTS_move *move) const = 0;
+    virtual double rollout() const = 0;
+    virtual bool is_term() const = 0;
+    virtual void print() const {
+        cout << "Printing not implemented" << endl;
+    }
+    virtual bool player1_turn() const = 0;     // MCTS is for two-player games mostly -> (keeps win rate)
+};
 
 #endif //STUDENTAI_H
