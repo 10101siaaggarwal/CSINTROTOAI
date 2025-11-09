@@ -27,7 +27,14 @@ Move StudentAI::GetMove(Move move)
     int j = rand() % (checker_moves.size());
     Move res = checker_moves[j];
     board.makeMove(res,player);
-    return res; 
+    return res;
+
+    Gstate gstate();
+    GTree gameTree(gstate);
+    Move mov = gameTree generate(move);
+
+    board.makeMove(mov, player);
+
     //return select_best_child(Node.score)
 }
 
@@ -66,8 +73,131 @@ public:
 };
 */
 
-GTree::GTree(Gstate *start_state, int max_iter):root(nullptr),max_iter(max_iter), max_seconds(60){
-    root = new Node(start_state, nullptr, nullptr); // root has no incoming move and no parent
+
+
+
+
+
+
+
+
+
+
+Node::Node(const Gstate *state, Node *parent, const Move*move): state(state), parent(parent), move(move), score(0.0){
+children = new vector<Node*>(10);
+totry = state->actions_to_try();
+term = state->term;
+}
+
+
+Node:: ~Node {
+    delete state;
+    delete move;
+    for (int i=0; i<children.size();i++){
+        delete children[i];
+    }
+    delete children;
+    while(totry){
+        delete totry->front();
+        totry->pop();
+    }
+    delete totr;
+}
+
+bool Node::is_expanded() const{
+    return term || totry->empty;
+}
+
+const Move* Node::get_move() const{
+return move;
+}
+
+unsigned int Node::get_size() const{
+    return size;
+}
+
+bool Node::is_term()const {return term;}
+
+void Node::expand(){
+if((!term) && ! is_expanded()){
+    Move *next_move = totry ->front();
+    totry->pop();
+    Gstate *next_state = state->next_state(next_move);
+
+    Node* nw = new Node(next_state, this, next_state);
+    nw->rollout();
+    children->push_back(nw);
+}
+if(term) rollout(); return;
+if(is_expanded()) return;
+}
+// one child per call, not all child
+
+void Node::rollout(){ // what?
+backpropagate(state->rollout(), 1);
+}
+
+void Node::backpropagate(double result, int n=1){
+    number_of_simulations +=n ;
+    score+=n;
+    if(parent) parent->backpropagate(result, n);
+}
+
+Node* Node::select_best_child(double c)const{
+if (!children->empty()){
+    if (children->size()==1) return children->at(0);
+    else{
+        double buct, uct = -1;
+        Node* bchild = nullptr;
+        for(int i = 0; i<children->size(); i++){
+
+            if(children->at(i)->number_of_simulations ==0)continue;
+
+            double wr = double(children->at(i)->score) / children[i]->number_of_simulations;
+            if(!state->t1()) wr = 1-wr;
+
+            if(c<=0) uct = wr;
+            else {uct = wr + c*sqrt(log(double(number_of_simulations))/children[i]->number_of_simulations);}
+
+            if (uct>buct) buct = uct; bchild = children->at(i);
+        }
+    }return bchild;
+}
+return nullptr;
+}
+
+Node* Node::advancetree(const Move *mov){
+Node* next = nullptr;
+for(int i = 0; i < children.size(); i++){
+    if(*(children[i]->move) == *mov){
+         next = children[i];
+    }
+    else delete children[i];
+}
+
+children->clear();
+
+if (next) next->parent = nullptr;
+else{Gstate *next_state = state->next_state(mov);
+next = new Node(next_state, nullptr, nullptr);}
+
+return next;
+}
+
+const Gstate * get_current_state() const{
+return state;
+}
+
+void Node::get_stats() const{}
+
+double Node::calculate_winrate(bool t1) const{
+    int c = score/number_of_simulations;
+    if(!t1){return 1-c;}
+    return c;
+}
+
+GTree::GTree(Gstate *start_state, int max_iter, Move move):root(nullptr),max_iter(max_iter), max_seconds(60){
+    root = new Node(start_state, nullptr, move); // root has no incoming move and no parent
 }
 
 GTree::~GTree(){
@@ -95,7 +225,7 @@ Node *GTree::select(double c){
 
 Node *GTree::select_best_child(){
     if(!root){return nullptr;}
-    return root->select_best_child(0.0); // optimal c in mcts
+    return root->select_best_child(1); // optimal c in mcts
 }// select best 
     
 void GTree::grow_tree(int max_iter, double max_time_insecs){
@@ -121,7 +251,7 @@ void GTree::grow_tree(int max_iter, double max_time_insecs){
         Node* simulate_at = leaf;
 
         if(!leaf->is_term() && leaf->is_expanded()){
-            Node* child = leaf->select_best_child(0.0);
+            Node* child = leaf->select_best_child(c_uct);
             if(child){simulate_at = child;}
         }
 
@@ -154,4 +284,21 @@ void GTree::get_states() const{
     if(root){
         root->get_stats();
     }
+}
+
+const Move *Gtree::generate(const Move emove){
+    if (emove)
+    this->advance_tree(emove);
+
+    if (this->get_current_state()->is_term()) return nullptr;
+
+    this->grow_tree(max_iter, max_secon);
+
+    Node* bchild = this->select_best_child();
+
+    if(!bchild) return nullptr;
+
+    const Move *betsmov = bchild->get_move();
+    this->advance_tree(bestmov)
+    return bestmov;
 }
