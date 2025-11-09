@@ -56,10 +56,10 @@ class GTree{
     public:
     GTree(Gstate *start_state, int max_iter);
     ~GTree();
-    Node *select(double c=? ); // select child to expand
+    Node *select(double c); // select child to expand
     Node *select_best_child(); // select best 
     
-    void grow_tree(int max_iter, double_max_time_insecs);
+    void grow_tree(int max_iter, double max_time_insecs);
 
     void advance_tree(const Move *move);
     unsigned int get_size() const;
