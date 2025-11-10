@@ -43,7 +43,8 @@ Move StudentAI::GetMove(Move move)
 Gstate::Gstate(Board board, int t):board(board), t(t)
 
 bool Gstate::is_term(){
-    return board.isWin(t) in {0,1,2};
+    int w = board.isWin(t);
+    return w==1||w==2||w==0;
 }
 
 bool Gstate::t1(){return t==1;}

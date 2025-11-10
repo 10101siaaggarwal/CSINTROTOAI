@@ -103,170 +103,136 @@ public:
     
 };
 */
+Gstate::Gstate(const Board& b, int t) : board(b), t(t) {}
 
-Gstate gstate(board, player);
-    GTree gameTree(gstate);
-    Move mov = * (gameTree.generate(move));
-
-Gstate::Gstate(Board board, int t):board(board), t(t)
-
-virtual queue<MCTS_move *> *actions_to_try(){
-
+bool Gstate::is_term() const {
+    int winner = board.isWin(t); // returns 0,1,2
+    return winner == 0 || winner == 1 || winner == 2;
 }
 
-double rollout(){
-    const Gstate* curr = this;
-    const Gstate* prev_alloc = nullptr;
+bool Gstate::t1() const { return t == 1; }
+
+Gstate* Gstate::next_state(const Move* move) const {
+    Board newBoard = board;
+    newBoard.makeMove(*move, t);
+    return new Gstate(newBoard, t == 1 ? 2 : 1);
+}
+
+std::queue<Move*>* Gstate::actions_to_try() const {
+    auto* q = new std::queue<Move*>();
+    std::vector<std::vector<Move>> allMoves = board.getAllPossibleMoves(t);
+
+    for (auto& movesVec : allMoves) {
+        for (auto& m : movesVec) {
+            q->push(new Move(m));
+        }
+    }
+    return q;
+}
+
+double Gstate::rollout() const {
+    Gstate* curr = new Gstate(board, t);
     std::mt19937 rng(static_cast<unsigned>(std::chrono::steady_clock::now().time_since_epoch().count()));
 
-    while(true){
-        //if(curr->is_term()){  
-        //}
+    while (!curr->is_term()) {
+        std::queue<Move*>* q = curr->actions_to_try();
+        if (!q || q->empty()) break;
 
-        queue<Move*>* q = curr->actions_to_try();
-
-        if(!q || q->empty()){
-            if(q){delete q;}
-            double res = curr->player1_turn() ? 0.0 : 1.0;
-            if(prev_alloc){delete prev_alloc;}
-            return res;
-        }
-
-        std::vector<Move*> random_picks;
-        random_picks.reserve(q->size());
-
-        while(!q->empty()){
-            random_picks.push_back(q->front());
+        std::vector<Move*> moves;
+        while (!q->empty()) {
+            moves.push_back(q->front());
             q->pop();
         }
-
         delete q;
 
-        std::uniform_int_distribution<size_t> dist(0, pool.size()-1);
-        size_t index = dist(rng);
-        Move* chosen = random_picks[index];
+        std::uniform_int_distribution<size_t> dist(0, moves.size() - 1);
+        Move* chosen = moves[dist(rng)];
+        Gstate* next = curr->next_state(chosen);
 
-
-        const Gstate* next = curr->next_state(chosen);
-
-        for(size_t i = 0; i < random_picks.size(); ++i){
-            if(i != index){delete random_picks[i];}
-        }
-
+        for (Move* m : moves) if (m != chosen) delete m;
         delete chosen;
-
-        if(prev_alloc){delete prev_alloc;}
-
-        prev_alloc=next;
-        curr=next;
+        delete curr;
+        curr = next;
     }
+
+    double result = curr->t1() ? 0.0 : 1.0;
+    delete curr;
+    return result;
 }
 
-bool Gstate::is_term(){
-    return board.isWin(t) in {0,1,2};
+Node::Node(Gstate* state, Node* parent, Move* move)
+    : state(state), parent(parent), move(move), score(0.0), number_of_simulations(0)
+{
+    term = state->is_term();
+    totry = state->actions_to_try();
 }
 
-
-Node::Node(const Gstate *state, Node *parent, const Move*move): state(state), parent(parent), move(move), score(0.0){
-children = new vector<Node*>(10);
-totry = state->actions_to_try();
-term = state->is_term();
+Node::~Node() {
+    for (Node* child : children) delete child;
+    delete totry;
 }
 
+bool Node::is_expanded() const { return term || totry->empty(); }
+bool Node::is_term() const { return term; }
+const Move* Node::get_move() const { return move; }
 
-Node:: ~Node {
-    delete state;
-    delete move;
-    for (int i=0; i<children.size();i++){
-        delete children[i];
-    }
-    delete children;
-    while(totry){
-        delete totry->front();
-        totry->pop();
-    }
-    delete totr;
-}
+void Node::expand() {
+    if (term || is_expanded()) return;
 
-bool Node::is_expanded() const{
-    return term || totry->empty;
-}
-
-const Move* Node::get_move() const{
-return move;
-}
-
-unsigned int Node::get_size() const{
-    return size;
-}
-
-bool Node::is_term()const {return term;}
-
-void Node::expand(){
-if((!term) && ! is_expanded()){
-    Move *next_move = totry ->front();
+    Move* next_move = totry->front();
     totry->pop();
-    Gstate *next_state = state->next_state(next_move);
+    Gstate* next_state = state->next_state(next_move);
 
-    Node* nw = new Node(next_state, this, this);
-    nw->rollout();
-    children->push_back(nw);
-}
-if(term) rollout(); return;
-if(is_expanded()) return;
-}
-// one child per call, not all child
+    Node* child = new Node(next_state, this, next_move);
+    children.push_back(child);
 
-void Node::rollout(){ // what?
-backpropagate(state->rollout(), 1);
+    child->rollout();
 }
 
-void Node::backpropagate(double result, int n=1){
-    number_of_simulations +=n ;
-    score+=n;
-    if(parent) parent->backpropagate(result, n);
+void Node::rollout() {
+    double result = state->rollout();
+    backpropagate(result, 1);
 }
 
-Node* Node::select_best_child(double c)const{
-if (!children->empty()){
-    if (children->size()==1) return children->at(0);
-    else{
-        double buct, uct = -1;
-        Node* bchild = nullptr;
-        for(int i = 0; i<children->size(); i++){
-
-            if(children->at(i)->number_of_simulations ==0)continue;
-
-            double wr = double(children->at(i)->score) / children[i]->number_of_simulations;
-            if(!state->t1()) wr = 1-wr;
-
-            if(c<=0) uct = wr;
-            else {uct = wr + c*sqrt(log(double(number_of_simulations))/children[i]->number_of_simulations);}
-
-            if (uct>buct) buct = uct; bchild = children->at(i);
-        }
-    }return bchild;
-}
-return nullptr;
+void Node::backpropagate(double result, int n) {
+    number_of_simulations += n;
+    score += result;
+    if (parent) parent->backpropagate(result, n);
 }
 
-Node* Node::advancetree(const Move *mov){
-Node* next = nullptr;
-for(int i = 0; i < children.size(); i++){
-    if(*(children[i]->move) == *mov){
-         next = children[i];
+Node* Node::select_best_child(double c) const {
+    if (children.empty()) return nullptr;
+    if (children.size() == 1) return children[0];
+
+    double best = -1e9;
+    Node* best_child = nullptr;
+
+    for (Node* child : children) {
+        if (child->number_of_simulations == 0) continue;
+        double wr = double(child->score) / child->number_of_simulations;
+        if (!state->t1()) wr = 1.0 - wr;
+
+        double uct = (c <= 0) ? wr : wr + c * sqrt(log(double(number_of_simulations)) / child->number_of_simulations);
+        if (uct > best) { best = uct; best_child = child; }
     }
-    else delete children[i];
+
+    return best_child;
 }
 
-children->clear();
+Node* Node::advancetree(const Move* mov) {
+    Node* next = nullptr;
+    for (Node* child : children) {
+        if (*(child->move) == *mov) next = child;
+        else delete child;
+    }
+    children.clear();
 
-if (next) next->parent = nullptr;
-else{Gstate *next_state = state->next_state(mov);
-next = new Node(next_state, nullptr, nullptr);}
-
-return next;
+    if (next) { next->parent = nullptr; return next; }
+    Gstate* next_state = state->next_state(mov);
+    return new Node(next_state, nullptr, mov);
 }
+
+Gstate* Node::get_current_state() const { return state; }
 
 const Gstate * get_current_state() const{
 return state;
@@ -359,31 +325,78 @@ unsigned int GTree::get_size() const{
     return root->get_size();
 }
 
-const Gstate *GTree::get_current_state() const{
-    if(!root){return nullptr;}
-    return root->get_current_state();
+GTree::GTree(Gstate* start_state, int max_iter, Move* move)
+    : root(new Node(start_state, nullptr, move)), max_iter(max_iter), max_seconds(60.0)
+{}
+
+GTree::~GTree() { delete root; }
+
+Node* GTree::select(double c) {
+    Node* node = root;
+    while (node->is_expanded() && !node->is_term()) {
+        Node* next = node->select_best_child(c);
+        if (!next) break;
+        node = next;
+    }
+
+    if (!node->is_term() && !node->is_expanded()) {
+        node->expand();
+        Node* pick_next = node->select_best_child(c);
+        if (pick_next) return pick_next;
+    }
+
+    return node;
 }
 
-void GTree::get_states() const{
-    if(root){
-        root->get_stats();
+Node* GTree::select_best_child() {
+    if (!root) return nullptr;
+    return root->select_best_child(1.0);
+}
+
+void GTree::grow_tree(int max_iter, double max_time_insecs) {
+    using clock = std::chrono::steady_clock;
+    const auto start = clock::now();
+    const double c_uct = std::sqrt(2.0);
+
+    for (int iter = 0; iter < max_iter; ++iter) {
+        if (max_time_insecs > 0.0) {
+            auto elapsed = clock::now() - start;
+            if (std::chrono::duration<double>(elapsed).count() >= max_time_insecs) break;
+        }
+
+        Node* leaf = select(c_uct);
+        if (!leaf) break;
+
+        if (!leaf->is_term()) leaf->expand();
+
+        Node* simulate_at = leaf;
+        if (!leaf->is_term() && leaf->is_expanded()) {
+            Node* child = leaf->select_best_child(c_uct);
+            if (child) simulate_at = child;
+        }
+
+        if (simulate_at) simulate_at->rollout();
     }
 }
 
-const Move *Gtree::generate(const Move emove){
-    if (emove)
-    this->advance_tree(emove);
-
-    if (this->get_current_state()->is_term()) return nullptr;
-
-    this->grow_tree(max_iter, max_seconds);
-
-    Node* bchild = this->select_best_child();
-
-    if(!bchild) return nullptr;
-
-    const Move *betsmov = bchild->get_move();
-    this->advance_tree(bestmov);
-    return bestmov;
+void GTree::advance_tree(const Move* move) {
+    if (!root) return;
+    Node* next = root->advancetree(move);
+    if (next) root = next;
 }
 
+const Move* GTree::generate(const Move* emove) {
+    if (emove) advance_tree(emove);
+
+    if (root->is_term()) return nullptr;
+
+    grow_tree(max_iter, max_seconds);
+
+    Node* best_child = select_best_child();
+    if (!best_child) return nullptr;
+
+    const Move* best_move = best_child->get_move();
+    advance_tree(best_move);
+
+    return best_move;
+}
