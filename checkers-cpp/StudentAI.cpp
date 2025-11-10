@@ -28,15 +28,14 @@ Move StudentAI::GetMove(Move move)
         board.makeMove(move, (player == 1 ? 2 : 1));
     }
 
-    // Keep the simple randomized policy here (as requested: do not change StudentAI)
-    std::vector<std::vector<Move>> moves = board.getAllPossibleMoves(player);
+      std::vector<std::vector<Move>> moves = board.getAllPossibleMoves(player);
     int i = rand() % (moves.size());
     std::vector<Move> checker_moves = moves[i];
     int j = rand() % (checker_moves.size());
     Move res = checker_moves[j];
     board.makeMove(res, player);
     return res;
-    // (Any future switch to MCTS should be wired outside this class per your constraints.)
+    
 }
 
 // -------------------------------
@@ -202,7 +201,7 @@ Node* Node::advancetree(const Move mov)
     }
 
     // If the move wasn't among the children, we must create the next node from scratch.
-    const Gstate* next = state->next_state(mov);
+    Gstate* next = state->next_state(mov);
     Node* fresh = new Node(next, nullptr, mov);
     return fresh;
 }
@@ -317,7 +316,7 @@ void GTree::advance_tree(const Move *move)
 
 unsigned int GTree::get_size() const
 {
-    if (!root) return 0U;
+    if (!root) return 0 ;
     return root->get_size();
 }
 
@@ -334,24 +333,23 @@ void GTree::get_states() const
 
 const Move* GTree::generate(const Move move)
 {
-    // If the opponent just moved, advance the tree to stay in sync
+    
     advance_tree(&move);
 
     if (root->is_term()) return nullptr;
 
-    // Grow the tree with current limits
+    
     grow_tree(max_iter, static_cast<double>(max_seconds));
 
-    // Pick the best child (pure exploitation)
+     
     Node* best = select_best_child();
     if (!best) return nullptr;
 
-    // Return a stable pointer to the chosen Move by copying to a static slot.
-    // (Header requires returning const Move*; Node exposes only by-value.)
+     
     static Move chosen;
     chosen = best->get_move();
 
-    // Advance the root to this move to keep the tree hot for the next call.
+     
     advance_tree(&chosen);
     return &chosen;
 }
