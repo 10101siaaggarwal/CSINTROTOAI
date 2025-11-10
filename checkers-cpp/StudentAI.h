@@ -7,10 +7,7 @@
 #include <vector>
 
 #pragma once
-
-// ---------------------------
-// StudentAI (unchanged)
-// ---------------------------
+ 
 class StudentAI : public AI
 {
 public:
@@ -18,25 +15,18 @@ public:
     StudentAI(int col, int row, int p);
     virtual Move GetMove(Move board);
 };
-
-// ---------------------------
-// Gstate interface (added)
-// ---------------------------
-// NOTE: Signatures match your current cpp usage:
-//  - actions_to_try() returns std::queue<Move*>*
-//  - next_state() takes const Move* and returns Gstate*
-//  - t1() identifies if it's player 1's turn for win-rate perspective
+ 
 class Gstate {
 public:
-    virtual ~Gstate() = default;
+   
 
-    virtual std::queue<Move*>* actions_to_try() const = 0;
-    virtual Gstate* next_state(const Move* move) const = 0;
-    virtual double rollout() const = 0;
-    virtual bool is_term() const = 0;
+     std::queue<Move*>* actions_to_try()  ;
+     Gstate* next_state(const Move* move)  ;
+     double rollout()  ;
+     bool is_term()  ;
 
-    virtual void print() const = 0;
-    virtual bool t1() const = 0;
+     void print()  ;
+     bool t1()  ;
 };
 
 // ---------------------------
