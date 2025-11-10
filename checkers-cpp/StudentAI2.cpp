@@ -46,6 +46,28 @@ bool Gstate::is_term(){
     return board.isWin(t) in {0,1,2};
 }
 
+bool Gstate::t1(){return t==1;}
+
+Gstate Gstate::next_state(const Move move){
+    
+    board.makeMove(move, t);
+    Board b = board;
+    if(t==1)
+    return Gstate(b,2 );
+
+    return Gstate(b,1);
+}
+
+queue<Move > Gstate :: actions_to_try(){
+    vector<vector<Move>> es = board.getAllPossibleMoves(board);
+    std::queue q;
+    for(int i=0; i<es.size(); i++){
+        for(int j=0; j<i.size(), j++){
+            q.push(es[i][j]);
+        }
+    }
+    return q;
+}
 
 /*
 class Node{
@@ -186,7 +208,7 @@ if((!term) && ! is_expanded()){
     totry->pop();
     Gstate *next_state = state->next_state(next_move);
 
-    Node* nw = new Node(next_state, this, next_state);
+    Node* nw = new Node(next_state, this, this);
     nw->rollout();
     children->push_back(nw);
 }
