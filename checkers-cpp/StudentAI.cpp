@@ -79,8 +79,6 @@ double Gstate::rollout() const {
         std::chrono::steady_clock::now().time_since_epoch().count()));
 
     // Work on a copy (heap) and keep deleting as we advance
-    Gstate* curr = new Gstate(board, t);
-
     while (!curr->is_term()) {
         std::queue<Move>* q = curr->actions_to_try();
         if (!q || q->empty()) {
@@ -426,4 +424,3 @@ const Move* GTree::generate(const Move move)
     advance_tree(&chosen);
     return &chosen;
 }
-

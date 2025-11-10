@@ -40,7 +40,7 @@ Move StudentAI::GetMove(Move move)
 
 
 
-Gstate::Gstate(Board board, int t):board(board), t(t)
+Gstate::Gstate(Board board, int t):board(board), t(t){}
 
 bool Gstate::is_term(){
     int w = board.isWin(t);
@@ -71,19 +71,17 @@ queue<Move*> Gstate :: actions_to_try(){
 }
 
 double Gstate::rollout(){
-    const Gstate* curr = this;
+    const Gstate* curr = new Gstate(board, t);
     const Gstate* prev_alloc = nullptr;
     std::mt19937 rng(static_cast<unsigned>(std::chrono::steady_clock::now().time_since_epoch().count()));
 
     while(true){
-        //if(curr->is_term()){  
-        //}
-
-        queue<Move*>* q = curr->actions_to_try();
+        std::queue<Move*>* q = curr->actions_to_try();
 
         if(!q || q->empty()){
             if(q){delete q;}
-            double res = curr->t1() ? 0.0 : 1.0;
+            double res = curr->t1() ? 0.0:1.0;
+            delete curr;
             if(prev_alloc){delete prev_alloc;}
             return res;
         }
@@ -96,17 +94,18 @@ double Gstate::rollout(){
             q->pop();
         }
 
+    
         delete q;
 
-        std::uniform_int_distribution<size_t> dist(0, pool.size()-1);
+        std::uniform_int_distribution<size_t> dist(0, random_picks.size()-1);
         size_t index = dist(rng);
         Move* chosen = random_picks[index];
 
 
-        const Gstate* next = curr->next_state(chosen);
+        Gstate* next = curr->next_state(chosen);
 
-        for(size_t i = 0; i < random_picks.size(); ++i){
-            if(i != index){delete random_picks[i];}
+        for(Move* m : random_picks){
+            if(m != chosen){delete m;}
         }
 
         delete chosen;

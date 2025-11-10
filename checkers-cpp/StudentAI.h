@@ -19,7 +19,7 @@ public:
 class Gstate {
 public:
    
-
+    Gstate(const Board& b, int turn); // we need this to see the tree in the current position and copy the board to set the next player
      std::queue<Move*>* actions_to_try()  ;
      Gstate* next_state(const Move* move)  ;
      double rollout()  ;
