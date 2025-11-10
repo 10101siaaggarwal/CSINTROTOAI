@@ -38,6 +38,79 @@ Move StudentAI::GetMove(Move move)
     
 }
 
+Gstate::Gstate(const Board& b, int turn) : board(b), t(turn) {}
+
+bool Gstate::is_term() const {
+    // Board::isWin(player) returns 0,1,2 for terminal (per your comment);
+    // if it returns -1/other for "ongoing", this check will work as intended.
+    int w = board.isWin(t);
+    return (w == 0) || (w == 1) || (w == 2);
+}
+
+bool Gstate::player1_turn() const {
+    return t == 1;
+}
+
+Gstate* Gstate::next_state(const Move move) const {
+    Board nextBoard = board;
+    nextBoard.makeMove(move, t);
+    int nextTurn = (t == 1 ? 2 : 1);
+    return new Gstate(nextBoard, nextTurn);
+}
+
+std::queue<Move>* Gstate::actions_to_try() const {
+    auto* q = new std::queue<Move>();
+    std::vector<std::vector<Move>> all = board.getAllPossibleMoves(t);
+    for (auto& bucket : all) {
+        for (auto& m : bucket) {
+            q->push(m); // Move by value
+        }
+    }
+    return q;
+}
+
+// Keep rollout as simple & fast as possible:
+// - Uniform random playout using a single RNG
+// - Moves by value (no Move* allocation)
+// - States are heap-allocated; we delete as we go
+double Gstate::rollout() const {
+    // Fast RNG seed from steady_clock
+    std::mt19937 rng(static_cast<unsigned>(
+        std::chrono::steady_clock::now().time_since_epoch().count()));
+
+    // Work on a copy (heap) and keep deleting as we advance
+    Gstate* curr = new Gstate(board, t);
+
+    while (!curr->is_term()) {
+        std::queue<Move>* q = curr->actions_to_try();
+        if (!q || q->empty()) {
+            if (q) delete q;
+            break; // no legal moves; terminal should be true anyway
+        }
+
+        // Collect to a small vector for O(1) random access
+        std::vector<Move> pool;
+        pool.reserve(q->size());
+        while (!q->empty()) { pool.push_back(q->front()); q->pop(); }
+        delete q;
+
+        std::uniform_int_distribution<size_t> dist(0, pool.size() - 1);
+        const Move& chosen = pool[dist(rng)];
+
+        // Step to next state; delete old
+        Gstate* next = curr->next_state(chosen);
+        delete curr;
+        curr = next;
+    }
+
+    // Very simple outcome proxy (same as your earlier version):
+    // if it's player1's turn at terminal, we say 0.0, else 1.0.
+    // You can replace this with your actual winner decoding if desired.
+    double result = curr->player1_turn() ? 0.0 : 1.0;
+    delete curr;
+    return result;
+}
+
 // -------------------------------
 // Node implementation
 // -------------------------------
