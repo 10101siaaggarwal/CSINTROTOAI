@@ -64,16 +64,10 @@ class GTree{
     void advance_tree(const Move *move);
     unsigned int get_size() const;
     const Gstate *get_current_state() const;
+
     void get_states() const;
-    const Move * generate(const Move move);
+
+	const Move * generate(const Move move);
+
 };
 
-class Gstate {
-public:
-    // Implement these:
-    queue<Move> *actions_to_try();
-    MCTS_state *next_state(const MCTS_move *move);
-    double rollout();
-    bool is_term();
-    bool t1();     // MCTS is for two-player games mostly -> (keeps win rate)};
-}

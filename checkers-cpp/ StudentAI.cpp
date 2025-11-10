@@ -31,7 +31,7 @@ Move StudentAI::GetMove(Move move)
 
     Gstate gstate(board, player);
     GTree gameTree(gstate);
-    Move mov =   (gameTree.generate(move));
+    Move mov = (gameTree.generate(move));
 
     board.makeMove(mov, player);
     return mov;
@@ -69,8 +69,7 @@ queue<Move*> Gstate :: actions_to_try(){
     return q;
 }
 
-
-double rollout(){
+double Gstate::rollout(){
     const Gstate* curr = this;
     const Gstate* prev_alloc = nullptr;
     std::mt19937 rng(static_cast<unsigned>(std::chrono::steady_clock::now().time_since_epoch().count()));
@@ -83,7 +82,7 @@ double rollout(){
 
         if(!q || q->empty()){
             if(q){delete q;}
-            double res = curr->player1_turn() ? 0.0 : 1.0;
+            double res = curr->t1() ? 0.0 : 1.0;
             if(prev_alloc){delete prev_alloc;}
             return res;
         }
