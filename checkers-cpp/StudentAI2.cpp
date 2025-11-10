@@ -114,7 +114,7 @@ virtual queue<MCTS_move *> *actions_to_try(){
 
 }
 
-virtual double rollout(){
+double rollout(){
     const Gstate* curr = this;
     const Gstate* prev_alloc = nullptr;
     std::mt19937 rng(static_cast<unsigned>(std::chrono::steady_clock::now().time_since_epoch().count()));
