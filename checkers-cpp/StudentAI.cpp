@@ -426,3 +426,4 @@ const Move* GTree::generate(const Move move)
     advance_tree(&chosen);
     return &chosen;
 }
+
