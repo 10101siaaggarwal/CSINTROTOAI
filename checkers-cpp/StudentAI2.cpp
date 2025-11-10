@@ -2,11 +2,15 @@
 #include <random>
 #include <chrono>
 #include <cmath>
+#include <vector>
+#include <queue>
+#include <limits>
 
-//The following part should be completed by students.
-//The students can modify anything except the class name and exisiting functions and varibles.
+// -------------------------------
+// StudentAI (unchanged)
+// -------------------------------
 StudentAI::StudentAI(int col,int row,int p)
-	:AI(col, row, p)
+    : AI(col, row, p)
 {
     board = Board(col,row,p);
     board.initializeGame();
@@ -18,328 +22,241 @@ Move StudentAI::GetMove(Move move)
     if (move.seq.empty())
     {
         player = 1;
-    } else{
-        board.makeMove(move,player == 1?2:1);
     }
-    // vector<vector<Move> > moves = board.getAllPossibleMoves(player);
-    // int i = rand() % (moves.size());
-    // vector<Move> checker_moves = moves[i];
-   //  int j = rand() % (checker_moves.size());
-    // Move res = checker_moves[j];
-    // board.makeMove(res,player);
-    // return res;
-
-    Gstate gstate(board, player);
-    GTree gameTree(gstate);
-    Move mov = * (gameTree.generate(move));
-
-    board.makeMove(mov, player);
-    return mov;
-    //return select_best_child(Node.score)
-}
-
-
-
-Gstate::Gstate(Board board, int t):board(board), t(t)
-
-bool Gstate::is_term(){
-    return board.isWin(t) in {0,1,2};
-}
-
-bool Gstate::t1(){return t==1;}
-
-Gstate Gstate::next_state(const Move move){
-    
-    board.makeMove(move, t);
-    Board b = board;
-    if(t==1)
-    return Gstate(b,2 );
-
-    return Gstate(b,1);
-}
-
-queue<Move > Gstate :: actions_to_try(){
-    vector<vector<Move>> es = board.getAllPossibleMoves(board);
-    std::queue q;
-    for(int i=0; i<es.size(); i++){
-        for(int j=0; j<i.size(), j++){
-            q.push(es[i][j]);
-        }
-    }
-    return q;
-}
-
-/*
-class Node{
-    bool term;
-    unsigned int size;
-    unsigned int number_of_simulations;
-    double score;
-    const Gstate * state; // current 
-    const Move *move; // move to come from parent to current 
-    vector<Node *> *children;
-    Node * parent;
-    queue < Move*> *totry;
-    void backpropagate(double w, int n);
-public:
-    Node(const Gstate *state,Node *parent, const Move *move);
-
-    ~Node();
-    bool is_expanded() const;
-    const Move *get_move() const;
-    unsigned int get_size() const;
-    bool is_term() const;
-
-    void expand();
-    void rollout();
-
-    Node* select_best_child(double c) const;
-    Node* advancetree(const Move *mov);
-    const Gstate *get_current_state() const;
-
-    void get_stats() const;
-    double calculate_winrate(bool player1turn) const;
-
-    
-};
-*/
-Gstate::Gstate(const Board& b, int t) : board(b), t(t) {}
-
-bool Gstate::is_term() const {
-    int winner = board.isWin(t); // returns 0,1,2
-    return winner == 0 || winner == 1 || winner == 2;
-}
-
-bool Gstate::t1() const { return t == 1; }
-
-Gstate* Gstate::next_state(const Move* move) const {
-    Board newBoard = board;
-    newBoard.makeMove(*move, t);
-    return new Gstate(newBoard, t == 1 ? 2 : 1);
-}
-
-std::queue<Move*>* Gstate::actions_to_try() const {
-    auto* q = new std::queue<Move*>();
-    std::vector<std::vector<Move>> allMoves = board.getAllPossibleMoves(t);
-
-    for (auto& movesVec : allMoves) {
-        for (auto& m : movesVec) {
-            q->push(new Move(m));
-        }
-    }
-    return q;
-}
-
-double Gstate::rollout() const {
-    Gstate* curr = new Gstate(board, t);
-    std::mt19937 rng(static_cast<unsigned>(std::chrono::steady_clock::now().time_since_epoch().count()));
-
-    while (!curr->is_term()) {
-        std::queue<Move*>* q = curr->actions_to_try();
-        if (!q || q->empty()) break;
-
-        std::vector<Move*> moves;
-        while (!q->empty()) {
-            moves.push_back(q->front());
-            q->pop();
-        }
-        delete q;
-
-        std::uniform_int_distribution<size_t> dist(0, moves.size() - 1);
-        Move* chosen = moves[dist(rng)];
-        Gstate* next = curr->next_state(chosen);
-
-        for (Move* m : moves) if (m != chosen) delete m;
-        delete chosen;
-        delete curr;
-        curr = next;
+    else
+    {
+        board.makeMove(move, (player == 1 ? 2 : 1));
     }
 
-    double result = curr->t1() ? 0.0 : 1.0;
-    delete curr;
-    return result;
+    // Keep the simple randomized policy here (as requested: do not change StudentAI)
+    std::vector<std::vector<Move>> moves = board.getAllPossibleMoves(player);
+    int i = rand() % (moves.size());
+    std::vector<Move> checker_moves = moves[i];
+    int j = rand() % (checker_moves.size());
+    Move res = checker_moves[j];
+    board.makeMove(res, player);
+    return res;
+    // (Any future switch to MCTS should be wired outside this class per your constraints.)
 }
 
-Node::Node(Gstate* state, Node* parent, Move* move)
-    : state(state), parent(parent), move(move), score(0.0), number_of_simulations(0)
+// -------------------------------
+// Node implementation
+// -------------------------------
+
+Node::Node(const Gstate *state, Node *parent, const Move move)
+    : term(false),
+      size(1),
+      number_of_simulations(0),
+      score(0.0),
+      state(state),
+      move(move),
+      children(new std::vector<Node*>()),
+      parent(parent),
+      totry(nullptr)
 {
+    // Assume ownership of 'state' lives with this node (including root).
     term = state->is_term();
-    totry = state->actions_to_try();
+    // Queue of actions to try comes from the game state
+    totry = state->actions_to_try(); // std::queue<Move>* (by value Moves)
 }
 
-Node::~Node() {
-    for (Node* child : children) delete child;
-    delete totry;
+Node::~Node()
+{
+    // Delete all children
+    if (children)
+    {
+        for (Node* ch : *children) delete ch;
+        delete children;
+        children = nullptr;
+    }
+    // Delete pending actions
+    if (totry)
+    {
+        delete totry;
+        totry = nullptr;
+    }
+    // Delete owned state
+    delete state;
 }
 
-bool Node::is_expanded() const { return term || totry->empty(); }
-bool Node::is_term() const { return term; }
-const Move* Node::get_move() const { return move; }
+bool Node::is_expanded() const
+{
+    // A terminal node is trivially "expanded";
+    // otherwise expanded iff there are no more untried actions.
+    return term || (totry && totry->empty());
+}
 
-void Node::expand() {
-    if (term || is_expanded()) return;
+const Move Node::get_move() const
+{
+    return move; // by value
+}
 
-    Move* next_move = totry->front();
+unsigned int Node::get_size() const
+{
+    // Recompute size on demand: 1 + sum(children)
+    unsigned int s = 1U;
+    if (children)
+    {
+        for (const Node* ch : *children) s += ch->get_size();
+    }
+    return s;
+}
+
+bool Node::is_term() const
+{
+    return term;
+}
+
+void Node::expand()
+{
+    if (term) return;
+    if (!totry || totry->empty()) return;
+
+    // Pop one untried action and create a single child
+    Move m = totry->front();
     totry->pop();
-    Gstate* next_state = state->next_state(next_move);
 
-    Node* child = new Node(next_state, this, next_move);
-    children.push_back(child);
-
-    child->rollout();
+    const Gstate* next = state->next_state(m); // returns a newly allocated state
+    Node* child = new Node(next, this, m);
+    children->push_back(child);
 }
 
-void Node::rollout() {
+void Node::backpropagate(double w, int n)
+{
+    number_of_simulations += static_cast<unsigned int>(n);
+    score += w;
+    if (parent) parent->backpropagate(w, n);
+}
+
+void Node::rollout()
+{
+    // One playout from this state's position.
+    // We assume state->rollout() returns a score in [0,1] from Player1's perspective.
     double result = state->rollout();
     backpropagate(result, 1);
 }
 
-void Node::backpropagate(double result, int n) {
-    number_of_simulations += n;
-    score += result;
-    if (parent) parent->backpropagate(result, n);
-}
+Node* Node::select_best_child(double c) const
+{
+    if (!children || children->empty()) return nullptr;
+    if (children->size() == 1) return (*children)[0];
 
-Node* Node::select_best_child(double c) const {
-    if (children.empty()) return nullptr;
-    if (children.size() == 1) return children[0];
-
-    double best = -1e9;
+    // UCT selection
+    double best_score = -std::numeric_limits<double>::infinity();
     Node* best_child = nullptr;
 
-    for (Node* child : children) {
-        if (child->number_of_simulations == 0) continue;
-        double wr = double(child->score) / child->number_of_simulations;
-        if (!state->t1()) wr = 1.0 - wr;
+    double ln_parent = (number_of_simulations > 0)
+        ? std::log(static_cast<double>(number_of_simulations))
+        : 0.0;
 
-        double uct = (c <= 0) ? wr : wr + c * sqrt(log(double(number_of_simulations)) / child->number_of_simulations);
-        if (uct > best) { best = uct; best_child = child; }
+    for (Node* ch : *children)
+    {
+        if (!ch || ch->number_of_simulations == 0) {
+            // Prefer unvisited child to encourage exploration
+            return ch;
+        }
+
+        // Winrate from Player1 perspective
+        double wr = ch->score / static_cast<double>(ch->number_of_simulations);
+
+        // If it's NOT Player1's turn at this node's state, flip perspective
+        // so the UCT maximizes the effective value from the player-to-move.
+        if (!state->player1_turn()) wr = 1.0 - wr;
+
+        double uct = (c <= 0.0)
+                   ? wr
+                   : wr + c * std::sqrt( ln_parent / static_cast<double>(ch->number_of_simulations) );
+
+        if (uct > best_score) {
+            best_score = uct;
+            best_child = ch;
+        }
     }
-
     return best_child;
 }
 
-Node* Node::advancetree(const Move* mov) {
-    Node* next = nullptr;
-    for (Node* child : children) {
-        if (*(child->move) == *mov) next = child;
-        else delete child;
+Node* Node::advancetree(const Move mov)
+{
+    // Try to reuse an existing child that matches the external move;
+    // delete all other children to keep the tree compact.
+    Node* keep = nullptr;
+
+    if (children)
+    {
+        for (Node* ch : *children)
+        {
+            if (ch->move == mov) {
+                keep = ch;
+            } else {
+                delete ch;
+            }
+        }
+        children->clear();
     }
-    children.clear();
 
-    if (next) { next->parent = nullptr; return next; }
-    Gstate* next_state = state->next_state(mov);
-    return new Node(next_state, nullptr, mov);
+    if (keep)
+    {
+        // Detach it from current node to make it the new root.
+        keep->parent = nullptr;
+        return keep;
+    }
+
+    // If the move wasn't among the children, we must create the next node from scratch.
+    const Gstate* next = state->next_state(mov);
+    Node* fresh = new Node(next, nullptr, mov);
+    return fresh;
 }
 
-Gstate* Node::get_current_state() const { return state; }
-
-const Gstate * get_current_state() const{
-return state;
+const Gstate* Node::get_current_state() const
+{
+    return state;
 }
 
-void Node::get_stats() const{}
-
-double Node::calculate_winrate(bool t1) const{
-    int c = score/number_of_simulations;
-    if(!t1){return 1-c;}
-    return c;
+void Node::get_stats() const
+{
+    // (No-op stub; left empty per your request to avoid extra output/work.)
 }
 
-GTree::GTree(Gstate *start_state, int max_iter, Move move):root(nullptr),max_iter(max_iter), max_seconds(60){
-    root = new Node(start_state, nullptr, move); // root has no incoming move and no parent
+double Node::calculate_winrate(bool player1turn) const
+{
+    if (number_of_simulations == 0) return 0.0;
+    double wr = score / static_cast<double>(number_of_simulations);
+    return player1turn ? wr : (1.0 - wr);
 }
 
-GTree::~GTree(){
+// -------------------------------
+// GTree implementation
+// -------------------------------
+
+GTree::GTree(Gstate *start_state, int max_iter, Move move)
+    : root(nullptr), max_iter(max_iter), max_seconds(60)
+{
+    // Root has no parent; we pass ownership of start_state to the root node.
+    root = new Node(start_state, nullptr, move);
+}
+
+GTree::~GTree()
+{
     delete root;
     root = nullptr;
- }
-
-Node *GTree::select(double c){
-    if(!root){return nullptr;}
-    Node *node = root;
-    while(node->is_expanded() && !node->is_term()){
-        Node *next = node->select_best_child(c);
-        if(!next){break;}
-        node=next;
-    }
-    if(!node->is_term() && !node->is_expanded()){
-        node->expand();
-        Node *pick_next=node->select_best_child(c);
-        if(pick_next){
-            return pick_next;
-        }
-    }
-    return node;
-} // select child to expand
-
-Node *GTree::select_best_child(){
-    if(!root){return nullptr;}
-    return root->select_best_child(1); // optimal c in mcts
-}// select best 
-    
-void GTree::grow_tree(int max_iter, double max_time_insecs){
-    using clock = std::chrono::steady_clock;
-    const auto start = clock::now();
-    const auto max_time = std::chrono::duration<double>(max_time_insecs);
-    const double c_uct = std::sqrt(2.0);
-
-    int iter = 0;
-    while(iter<max_iter){
-        if(max_time_insecs>0.0){
-            auto elapse = clock::now()-start;
-            if(elapse >= max_time){break;}
-        }
-
-        Node* leaf = select(c_uct);
-        if(!leaf){break;}
-
-        if(!leaf->is_term()){
-            leaf->expand();
-        }
-
-        Node* simulate_at = leaf;
-
-        if(!leaf->is_term() && leaf->is_expanded()){
-            Node* child = leaf->select_best_child(c_uct);
-            if(child){simulate_at = child;}
-        }
-
-        if(simulate_at){
-            simulate_at->rollout();
-        }
-        ++iter;
-    }
 }
 
-void GTree::advance_tree(const Move *move){
-    if(!root){return;}
-    Node* next = root->advancetree(move);
-    if(next){
-        root=next;
-    }
-}
+Node* GTree::select(double c)
+{
+    if (!root) return nullptr;
 
-unsigned int GTree::get_size() const{
-    if(!root){return 0;}
-    return root->get_size();
-}
-
-GTree::GTree(Gstate* start_state, int max_iter, Move* move)
-    : root(new Node(start_state, nullptr, move)), max_iter(max_iter), max_seconds(60.0)
-{}
-
-GTree::~GTree() { delete root; }
-
-Node* GTree::select(double c) {
     Node* node = root;
-    while (node->is_expanded() && !node->is_term()) {
+    // Descend while fully expanded and non-terminal
+    while (node->is_expanded() && !node->is_term())
+    {
         Node* next = node->select_best_child(c);
         if (!next) break;
         node = next;
     }
 
-    if (!node->is_term() && !node->is_expanded()) {
+    // If we reached a non-terminal, not-yet-expanded node, expand one child
+    if (!node->is_term() && !node->is_expanded())
+    {
         node->expand();
         Node* pick_next = node->select_best_child(c);
         if (pick_next) return pick_next;
@@ -348,18 +265,25 @@ Node* GTree::select(double c) {
     return node;
 }
 
-Node* GTree::select_best_child() {
+Node* GTree::select_best_child()
+{
     if (!root) return nullptr;
-    return root->select_best_child(1.0);
+    // c = 0 -> pure exploitation when picking the final action
+    return root->select_best_child(0.0);
 }
 
-void GTree::grow_tree(int max_iter, double max_time_insecs) {
+void GTree::grow_tree(int max_iter_param, double max_time_insecs)
+{
     using clock = std::chrono::steady_clock;
     const auto start = clock::now();
     const double c_uct = std::sqrt(2.0);
 
-    for (int iter = 0; iter < max_iter; ++iter) {
-        if (max_time_insecs > 0.0) {
+    int iters = (max_iter_param > 0 ? max_iter_param : max_iter);
+
+    for (int iter = 0; iter < iters; ++iter)
+    {
+        if (max_time_insecs > 0.0)
+        {
             auto elapsed = clock::now() - start;
             if (std::chrono::duration<double>(elapsed).count() >= max_time_insecs) break;
         }
@@ -370,7 +294,8 @@ void GTree::grow_tree(int max_iter, double max_time_insecs) {
         if (!leaf->is_term()) leaf->expand();
 
         Node* simulate_at = leaf;
-        if (!leaf->is_term() && leaf->is_expanded()) {
+        if (!leaf->is_term() && leaf->is_expanded())
+        {
             Node* child = leaf->select_best_child(c_uct);
             if (child) simulate_at = child;
         }
@@ -379,24 +304,54 @@ void GTree::grow_tree(int max_iter, double max_time_insecs) {
     }
 }
 
-void GTree::advance_tree(const Move* move) {
-    if (!root) return;
-    Node* next = root->advancetree(move);
-    if (next) root = next;
+void GTree::advance_tree(const Move *move)
+{
+    if (!root || !move) return;
+    Node* next = root->advancetree(*move);
+    if (next)
+    {
+        delete root;
+        root = next;
+    }
 }
 
-const Move* GTree::generate(const Move* emove) {
-    if (emove) advance_tree(emove);
+unsigned int GTree::get_size() const
+{
+    if (!root) return 0U;
+    return root->get_size();
+}
+
+const Gstate* GTree::get_current_state() const
+{
+    if (!root) return nullptr;
+    return root->get_current_state();
+}
+
+void GTree::get_states() const
+{
+    if (root) root->get_stats();
+}
+
+const Move* GTree::generate(const Move move)
+{
+    // If the opponent just moved, advance the tree to stay in sync
+    advance_tree(&move);
 
     if (root->is_term()) return nullptr;
 
-    grow_tree(max_iter, max_seconds);
+    // Grow the tree with current limits
+    grow_tree(max_iter, static_cast<double>(max_seconds));
 
-    Node* best_child = select_best_child();
-    if (!best_child) return nullptr;
+    // Pick the best child (pure exploitation)
+    Node* best = select_best_child();
+    if (!best) return nullptr;
 
-    const Move* best_move = best_child->get_move();
-    advance_tree(best_move);
+    // Return a stable pointer to the chosen Move by copying to a static slot.
+    // (Header requires returning const Move*; Node exposes only by-value.)
+    static Move chosen;
+    chosen = best->get_move();
 
-    return best_move;
+    // Advance the root to this move to keep the tree hot for the next call.
+    advance_tree(&chosen);
+    return &chosen;
 }

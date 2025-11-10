@@ -1,38 +1,66 @@
 #ifndef STUDENTAI_H
 #define STUDENTAI_H
+
 #include "AI.h"
 #include "Board.h"
+#include <queue>
+#include <vector>
+
 #pragma once
 
-#include <queue>
-
-//The following part should be completed by students.
-//Students can modify anything except the class name and exisiting functions and varibles.
-class StudentAI :public AI
+// ---------------------------
+// StudentAI (unchanged)
+// ---------------------------
+class StudentAI : public AI
 {
 public:
     Board board;
-	StudentAI(int col, int row, int p);
-	virtual Move GetMove(Move board);
+    StudentAI(int col, int row, int p);
+    virtual Move GetMove(Move board);
 };
 
+// ---------------------------
+// Gstate interface (added)
+// ---------------------------
+// NOTE: Signatures match your current cpp usage:
+//  - actions_to_try() returns std::queue<Move*>*
+//  - next_state() takes const Move* and returns Gstate*
+//  - t1() identifies if it's player 1's turn for win-rate perspective
+class Gstate {
+public:
+    virtual ~Gstate() = default;
 
-class Node{
+    virtual std::queue<Move*>* actions_to_try() const = 0;
+    virtual Gstate* next_state(const Move* move) const = 0;
+    virtual double rollout() const = 0;
+    virtual bool is_term() const = 0;
+
+    virtual void print() const = 0;
+    virtual bool t1() const = 0;
+};
+
+// ---------------------------
+// Node (kept the same as before)
+// ---------------------------
+class Node {
     bool term;
     unsigned int size;
     unsigned int number_of_simulations;
     double score;
-    const Gstate * state; // current 
-    const Move  move; // move to come from parent to current 
-    vector<Node *> *children;
-    Node * parent;
-    std::queue <Move > *totry;
+    const Gstate* state;            // current
+    const Move   move;              // move from parent to current
+    std::vector<Node*>* children;
+    Node* parent;
+    std::queue<Move>* totry;
+
     void backpropagate(double w, int n);
+
 public:
-    Node(const Gstate *state,Node *parent, const Move  move);
+    Node(const Gstate* state, Node* parent, const Move move);
     ~Node();
+
     bool is_expanded() const;
-    const Move  get_move() const;
+    const Move get_move() const;
     unsigned int get_size() const;
     bool is_term() const;
 
@@ -40,34 +68,36 @@ public:
     void rollout();
 
     Node* select_best_child(double c) const;
-    Node* advancetree(const Move  mov);
-    const Gstate *get_current_state() const;
+    Node* advancetree(const Move mov);
+    const Gstate* get_current_state() const;
 
     void get_stats() const;
     double calculate_winrate(bool player1turn) const;
-
 };
 
- 
-class GTree{
-    Node *root;
-    int max_iter = 10000, max_seconds=60;
+// ---------------------------
+// GTree (kept the same as before)
+// ---------------------------
+class GTree {
+    Node* root;
+    int max_iter = 10000, max_seconds = 60;
 
-    public:
-    GTree(Gstate *start_state, int max_iter, Move move);
+public:
+    GTree(Gstate* start_state, int max_iter, Move move);
     ~GTree();
-    Node *select(double c); // select child to expand
-    Node *select_best_child(); // select best 
-    
+
+    Node* select(double c);        // select child to expand
+    Node* select_best_child();     // select best
+
     void grow_tree(int max_iter, double max_time_insecs);
 
-    void advance_tree(const Move *move);
+    void advance_tree(const Move* move);
     unsigned int get_size() const;
-    const Gstate *get_current_state() const;
+    const Gstate* get_current_state() const;
 
     void get_states() const;
 
-	const Move * generate(const Move move);
-
+    const Move* generate(const Move move);
 };
 
+#endif // STUDENTAI_H
